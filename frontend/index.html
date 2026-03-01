@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <!-- Capacitor: keep viewport fixed; disables iOS bounce and overscroll -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Squash Trainer</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       AUTH SECTION  (shown when logged out)
+  ══════════════════════════════════════════════ -->
+  <div id="auth-section">
+    <div class="auth-container">
+
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
+            <circle cx="24" cy="24" r="22" stroke="#00C853" stroke-width="3"/>
+            <ellipse cx="24" cy="24" rx="10" ry="22" stroke="#00C853" stroke-width="2" opacity=".5"/>
+            <line x1="2" y1="24" x2="46" y2="24" stroke="#00C853" stroke-width="2" opacity=".5"/>
+          </svg>
+        </div>
+        <h1>Squash Trainer</h1>
+        <p class="brand-sub">Your personal shot coach</p>
+      </div>
+
+      <!-- Login Panel -->
+      <div id="login-panel" class="auth-panel">
+        <h2>Welcome back</h2>
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" required />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Login</button>
+        </form>
+        <p class="auth-switch">No account? <a href="#" id="show-signup">Sign up free</a></p>
+      </div>
+
+      <!-- Signup Panel -->
+      <div id="signup-panel" class="auth-panel hidden">
+        <h2>Create account</h2>
+        <form id="signup-form" novalidate>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password <span class="label-hint">(min 6 chars)</span></label>
+            <input type="password" id="signup-password" placeholder="Choose a password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+        </form>
+        <p class="auth-switch">Have an account? <a href="#" id="show-login">Login</a></p>
+      </div>
+
+      <p id="auth-message" class="message" role="alert"></p>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════
+       APP SECTION  (shown when logged in)
+  ══════════════════════════════════════════════ -->
+  <div id="app-section" class="hidden">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-brand">Squash Trainer</div>
+      <div class="header-user">
+        <span id="user-email" class="user-email-label"></span>
+        <button id="logout-btn" class="btn btn-ghost btn-sm">Logout</button>
+      </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="app-main">
+
+      <!-- ── Settings View ───────────────────────── -->
+      <div id="settings-view" class="view hidden">
+        <h2 class="view-title">Settings</h2>
+        <form id="settings-form" class="card" novalidate>
+
+          <div class="form-group">
+            <label for="setting-a">
+              Min Interval (A)
+              <span class="unit">seconds</span>
+            </label>
+            <input type="number" id="setting-a" min="1" max="300" value="5" required />
+            <small>Shortest possible gap between shot calls</small>
+          </div>
+
+          <div class="form-group">
+            <label for="setting-b">
+              Max Interval (B)
+              <span class="unit">seconds</span>
+            </label>
+            <input type="number" id="setting-b" min="2" max="600" value="15" required />
+            <small>Longest possible gap between shot calls</small>
+          </div>
+
+          <div class="form-group">
+            <label for="setting-c">
+              Session Duration (C)
+              <span class="unit">seconds</span>
+            </label>
+            <input type="number" id="setting-c" min="10" max="7200" value="300" required />
+            <small>Total training session length (e.g. 300 = 5 min)</small>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">Save Settings</button>
+          <p id="settings-message" class="message" role="alert"></p>
+        </form>
+      </div>
+
+
+      <!-- ── Session View ────────────────────────── -->
+      <div id="session-view" class="view hidden">
+        <h2 class="view-title">Training Session</h2>
+
+        <!-- Live stats (shown while active) -->
+        <div id="session-display" class="card session-stats hidden">
+          <div class="stat-row">
+            <div class="stat">
+              <div class="stat-label">Elapsed</div>
+              <div class="stat-value mono" id="session-elapsed">00:00</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Remaining</div>
+              <div class="stat-value mono" id="session-remaining">--:--</div>
+            </div>
+          </div>
+          <div class="stat-row">
+            <div class="stat stat-full">
+              <div class="stat-label">Next shot in</div>
+              <div class="stat-value mono countdown" id="next-shot-countdown">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current shot name (shown while active) -->
+        <div id="shot-display" class="card shot-card hidden">
+          <div class="shot-label">Current Shot</div>
+          <div class="current-shot" id="current-shot">-</div>
+        </div>
+
+        <!-- Start / Stop controls -->
+        <div class="session-controls">
+          <button id="start-btn" class="btn btn-success btn-large">&#9654; Start Session</button>
+          <button id="stop-btn" class="btn btn-danger btn-large hidden">&#9632; Stop Session</button>
+        </div>
+
+        <div class="session-info card">
+          <p>
+            The app will call out a random squash shot at random intervals
+            between your configured <strong>A</strong> and <strong>B</strong> seconds.
+            Make sure your device volume is on to hear the shots.
+          </p>
+        </div>
+      </div>
+
+
+      <!-- ── History View ────────────────────────── -->
+      <div id="history-view" class="view hidden">
+        <h2 class="view-title">Session History</h2>
+        <div id="history-list" class="history-list">
+          <p class="empty">Loading&hellip;</p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Bottom tab navigation -->
+    <nav class="bottom-nav" role="tablist">
+      <button id="tab-settings" class="tab-btn active" role="tab" aria-selected="true">
+        <span class="tab-icon" aria-hidden="true">&#9881;</span>
+        <span class="tab-label">Settings</span>
+      </button>
+      <button id="tab-session" class="tab-btn" role="tab" aria-selected="false">
+        <span class="tab-icon" aria-hidden="true">&#9654;</span>
+        <span class="tab-label">Session</span>
+      </button>
+      <button id="tab-history" class="tab-btn" role="tab" aria-selected="false">
+        <span class="tab-icon" aria-hidden="true">&#128203;</span>
+        <span class="tab-label">History</span>
+      </button>
+    </nav>
+
+  </div><!-- /#app-section -->
+
+  <!-- Supabase JS SDK (bundled locally — no CDN required at runtime) -->
+  <script src="js/supabase.min.js"></script>
+  <!-- Your Supabase project URL + anon key — edit before building -->
+  <script src="js/supabase-config.js"></script>
+  <!-- App logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
