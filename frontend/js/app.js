@@ -54,8 +54,21 @@ const SHOTS = [
   'Cross Court Drive', 'Straight Drive',
   'Trickle Boast',     'Reverse Angle',
   'Volley Drop',       'Volley Drive',
-  'Nick Shot',
 ];
+
+// Enabled subset — persisted in localStorage, defaults to all shots
+const SHOTS_KEY = 'squash_enabled_shots';
+let enabledShots = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SHOTS_KEY));
+    if (Array.isArray(saved) && saved.length > 0) {
+      // Filter out any shots that no longer exist in SHOTS
+      const valid = saved.filter(s => SHOTS.includes(s));
+      if (valid.length > 0) return valid;
+    }
+  } catch (_) {}
+  return [...SHOTS]; // default: all enabled
+})();
 
 // ── App state ─────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -92,7 +105,8 @@ function randInt(min, max) {
 }
 
 function randomShot() {
-  return SHOTS[Math.floor(Math.random() * SHOTS.length)];
+  const pool = enabledShots.length > 0 ? enabledShots : SHOTS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // ── Speech ────────────────────────────────────────────────────────────────
@@ -244,7 +258,43 @@ function showView(name) {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
+
+// Build the shot-chip grid once on first load
+function buildShotChips() {
+  const grid = $('shots-grid');
+  if (!grid || grid.dataset.built) return;
+  grid.dataset.built = '1';
+
+  SHOTS.forEach(shot => {
+    const id      = 'shot-' + shot.replace(/\s+/g, '-').toLowerCase();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'shot-chip';
+
+    const cb  = document.createElement('input');
+    cb.type   = 'checkbox';
+    cb.id     = id;
+    cb.value  = shot;
+    cb.checked = enabledShots.includes(shot);
+
+    const lbl = document.createElement('label');
+    lbl.htmlFor     = id;
+    lbl.textContent = shot;
+
+    wrapper.appendChild(cb);
+    wrapper.appendChild(lbl);
+    grid.appendChild(wrapper);
+  });
+
+  $('shots-all').addEventListener('click', () => {
+    grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+  });
+  $('shots-none').addEventListener('click', () => {
+    grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  });
+}
+
 async function loadSettings() {
+  buildShotChips();
   try {
     let data;
     if (LOCAL_MODE) {
@@ -282,6 +332,17 @@ async function handleSaveSettings(e) {
     return;
   }
 
+  // Read shot selection
+  const selected = Array.from(
+    $('shots-grid').querySelectorAll('input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+
+  if (selected.length === 0) {
+    msg.textContent = 'Select at least one shot';
+    msg.className   = 'message error';
+    return;
+  }
+
   try {
     if (LOCAL_MODE) {
       await localFetch('/api/settings', 'POST', { min_interval: a, max_interval: b, session_duration: c });
@@ -292,7 +353,10 @@ async function handleSaveSettings(e) {
       );
       if (error) throw new Error(error.message);
     }
-    settings = { min_interval: a, max_interval: b, session_duration: c };
+    settings      = { min_interval: a, max_interval: b, session_duration: c };
+    enabledShots  = selected;
+    localStorage.setItem(SHOTS_KEY, JSON.stringify(selected));
+
     msg.textContent = 'Settings saved!';
     msg.className   = 'message success';
     setTimeout(() => { msg.textContent = ''; msg.className = 'message'; }, 2500);

@@ -246,6 +246,72 @@ input[type="number"] { -moz-appearance: textfield; }
   border-radius: 6px;
 }
 
+.btn-xs {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+
+/* ══════════════════════════════════════════════
+   SHOT SELECTOR  (settings view)
+══════════════════════════════════════════════ */
+.shots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.shots-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.shots-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.shots-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shot-chip input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.shot-chip label {
+  display: inline-block;
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.shot-chip input:checked + label {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .btn-large {
   width: 100%;
   padding: 20px;

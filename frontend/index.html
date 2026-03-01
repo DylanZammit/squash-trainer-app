@@ -122,6 +122,21 @@
             <small>Total training session length (e.g. 300 = 5 min)</small>
           </div>
 
+          <div class="form-group">
+            <div class="shots-header">
+              <label class="shots-label">
+                Shots
+                <span class="unit">active during session</span>
+              </label>
+              <div class="shots-actions">
+                <button type="button" id="shots-all"  class="btn btn-ghost btn-xs">All</button>
+                <button type="button" id="shots-none" class="btn btn-ghost btn-xs">None</button>
+              </div>
+            </div>
+            <div id="shots-grid" class="shots-grid"></div>
+            <small>Only checked shots will be called</small>
+          </div>
+
           <button type="submit" class="btn btn-primary btn-full">Save Settings</button>
           <p id="settings-message" class="message" role="alert"></p>
         </form>
