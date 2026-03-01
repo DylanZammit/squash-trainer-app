@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#0d0d0d"/>
+
+  <!-- ── Header ── -->
+  <rect x="0" y="0" width="390" height="56" fill="#1a1a1a"/>
+  <line x1="0" y1="56" x2="390" y2="56" stroke="#2e2e2e" stroke-width="1"/>
+  <text x="16" y="35" fill="#00C853" font-size="17" font-weight="800">Squash Trainer</text>
+  <text x="270" y="33" fill="#888" font-size="13">player@squash.com</text>
+  <rect x="336" y="18" width="46" height="22" rx="6" fill="transparent" stroke="#2e2e2e" stroke-width="1.5"/>
+  <text x="359" y="33" text-anchor="middle" fill="#888" font-size="12" font-weight="600">Logout</text>
+
+  <!-- ── Page title ── -->
+  <text x="16" y="96" fill="#f0f0f0" font-size="24" font-weight="800">Training Session</text>
+
+  <!-- ── Stats card ── -->
+  <rect x="16" y="108" width="358" height="160" rx="14" fill="#1a1a1a" stroke="#2e2e2e" stroke-width="1"/>
+
+  <!-- Elapsed tile -->
+  <rect x="28" y="120" width="160" height="68" rx="8" fill="#222" stroke="#2e2e2e" stroke-width="1"/>
+  <text x="108" y="143" text-anchor="middle" fill="#888" font-size="10" font-weight="600" letter-spacing="0.7">ELAPSED</text>
+  <text x="108" y="172" text-anchor="middle" fill="#f0f0f0" font-size="26" font-weight="700">02:14</text>
+
+  <!-- Remaining tile -->
+  <rect x="202" y="120" width="160" height="68" rx="8" fill="#222" stroke="#2e2e2e" stroke-width="1"/>
+  <text x="282" y="143" text-anchor="middle" fill="#888" font-size="10" font-weight="600" letter-spacing="0.7">REMAINING</text>
+  <text x="282" y="172" text-anchor="middle" fill="#f0f0f0" font-size="26" font-weight="700">02:46</text>
+
+  <!-- Countdown row -->
+  <rect x="28" y="200" width="334" height="58" rx="8" fill="#222" stroke="#2e2e2e" stroke-width="1"/>
+  <text x="195" y="220" text-anchor="middle" fill="#888" font-size="10" font-weight="600" letter-spacing="0.7">NEXT SHOT IN</text>
+  <text x="195" y="250" text-anchor="middle" fill="#00C853" font-size="42" font-weight="800">7</text>
+
+  <!-- ── Current Shot card ── -->
+  <!-- Radial glow on shot card -->
+  <radialGradient id="shotglow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#00C853" stop-opacity="0.12"/>
+    <stop offset="100%" stop-color="#00C853" stop-opacity="0"/>
+  </radialGradient>
+  <rect x="16" y="280" width="358" height="110" rx="14" fill="url(#shotglow)" stroke="#00C853" stroke-width="1" stroke-opacity="0.3"/>
+  <rect x="16" y="280" width="358" height="110" rx="14" fill="#1a1a1a" opacity="0.6"/>
+  <text x="195" y="316" text-anchor="middle" fill="#888" font-size="11" font-weight="600" letter-spacing="0.8">CURRENT SHOT</text>
+  <text x="195" y="358" text-anchor="middle" fill="#00C853" font-size="28" font-weight="800">Right Front Drop</text>
+
+  <!-- ── Stop button ── -->
+  <rect x="16" y="406" width="358" height="62" rx="14" fill="#f44336"/>
+  <text x="195" y="445" text-anchor="middle" fill="#fff" font-size="18" font-weight="600">■  Stop Session</text>
+
+  <!-- ── Info card ── -->
+  <rect x="16" y="484" width="358" height="72" rx="14" fill="#222" stroke="#2e2e2e" stroke-width="1"/>
+  <text x="36" y="507" fill="#888" font-size="13">The app will call out a random squash shot</text>
+  <text x="36" y="527" fill="#888" font-size="13">at random intervals between your</text>
+  <text x="36" y="547" fill="#888" font-size="13"><tspan fill="#00C853">A</tspan> and <tspan fill="#00C853">B</tspan> seconds. Keep device volume on.</text>
+
+  <!-- ── Bottom nav ── -->
+  <rect x="0" y="780" width="390" height="64" fill="#1a1a1a"/>
+  <line x1="0" y1="780" x2="390" y2="780" stroke="#2e2e2e" stroke-width="1"/>
+
+  <!-- Settings tab -->
+  <text x="65" y="807" text-anchor="middle" fill="#888" font-size="20">⚙</text>
+  <text x="65" y="826" text-anchor="middle" fill="#888" font-size="11" font-weight="600">Settings</text>
+
+  <!-- Session tab (active) -->
+  <text x="195" y="807" text-anchor="middle" fill="#00C853" font-size="20">▶</text>
+  <text x="195" y="826" text-anchor="middle" fill="#00C853" font-size="11" font-weight="600">Session</text>
+
+  <!-- History tab -->
+  <text x="325" y="807" text-anchor="middle" fill="#888" font-size="20">📋</text>
+  <text x="325" y="826" text-anchor="middle" fill="#888" font-size="11" font-weight="600">History</text>
+</svg>

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#0d0d0d"/>
+  <!-- Subtle radial glow -->
+  <radialGradient id="glow" cx="30%" cy="10%" r="55%">
+    <stop offset="0%" stop-color="#00C853" stop-opacity="0.07"/>
+    <stop offset="100%" stop-color="#00C853" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="390" height="844" fill="url(#glow)"/>
+
+  <!-- Auth card -->
+  <rect x="20" y="120" width="350" height="530" rx="14" ry="14" fill="#1a1a1a" stroke="#2e2e2e" stroke-width="1"/>
+
+  <!-- ── Brand ── -->
+  <!-- Squash ball icon -->
+  <g transform="translate(195,178)">
+    <circle cx="0" cy="0" r="26" fill="none" stroke="#00C853" stroke-width="3"/>
+    <ellipse cx="0" cy="0" rx="12" ry="26" fill="none" stroke="#00C853" stroke-width="2" opacity="0.5"/>
+    <line x1="-26" y1="0" x2="26" y2="0" stroke="#00C853" stroke-width="2" opacity="0.5"/>
+  </g>
+  <!-- App name -->
+  <text x="195" y="226" text-anchor="middle" fill="#00C853" font-size="28" font-weight="800" letter-spacing="-0.5">Squash Trainer</text>
+  <text x="195" y="247" text-anchor="middle" fill="#888" font-size="14">Your personal shot coach</text>
+
+  <!-- Divider -->
+  <line x1="44" y1="268" x2="346" y2="268" stroke="#2e2e2e" stroke-width="1"/>
+
+  <!-- ── Login panel ── -->
+  <text x="44" y="300" fill="#f0f0f0" font-size="20" font-weight="700">Welcome back</text>
+
+  <!-- Email label -->
+  <text x="44" y="328" fill="#888" font-size="11" font-weight="600" letter-spacing="0.6" text-transform="uppercase">EMAIL</text>
+  <!-- Email input -->
+  <rect x="44" y="335" width="302" height="46" rx="8" fill="#222" stroke="#2e2e2e" stroke-width="1.5"/>
+  <text x="60" y="363" fill="#555" font-size="15">you@example.com</text>
+
+  <!-- Password label -->
+  <text x="44" y="402" fill="#888" font-size="11" font-weight="600" letter-spacing="0.6">PASSWORD</text>
+  <!-- Password input -->
+  <rect x="44" y="409" width="302" height="46" rx="8" fill="#222" stroke="#2e2e2e" stroke-width="1.5"/>
+  <text x="60" y="437" fill="#555" font-size="15">••••••••••</text>
+
+  <!-- Login button -->
+  <rect x="44" y="475" width="302" height="48" rx="8" fill="#00C853"/>
+  <text x="195" y="505" text-anchor="middle" fill="#000" font-size="15" font-weight="600">Login</text>
+
+  <!-- Switch link -->
+  <text x="195" y="548" text-anchor="middle" fill="#888" font-size="14">No account? <tspan fill="#00C853" font-weight="500">Sign up free</tspan></text>
+
+  <!-- Auth message area (empty) -->
+  <text x="195" y="580" text-anchor="middle" fill="#888" font-size="13" opacity="0.5"></text>
+
+  <!-- Bottom hint -->
+  <text x="195" y="690" text-anchor="middle" fill="#555" font-size="12">© Squash Trainer</text>
+</svg>
