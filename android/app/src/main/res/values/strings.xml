@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Squash Trainer</string>
+    <string name="title_activity_main">Squash Trainer</string>
+    <string name="package_name">com.squashtrainer.app</string>
+    <string name="custom_url_scheme">com.squashtrainer.app</string>
+</resources>
