@@ -1,0 +1,34 @@
+# ── Node ─────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# ── Environment / secrets ─────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+# keep .env.example tracked
+
+# ── SQLite database file (created at runtime) ─────────────────────────────
+backend/squash.db
+backend/squash.db-shm
+backend/squash.db-wal
+
+# ── Android build outputs ─────────────────────────────────────────────────
+android/.gradle/
+android/app/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+
+# ── macOS ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/

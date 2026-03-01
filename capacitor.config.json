@@ -1,0 +1,19 @@
+{
+  "appId":   "com.squashtrainer.app",
+  "appName": "Squash Trainer",
+  "webDir":  "frontend",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration":        1500,
+      "launchAutoHide":            true,
+      "backgroundColor":           "#0d0d0d",
+      "androidSplashResourceName": "splash",
+      "showSpinner":               false
+    }
+  },
+  "android": {
+    "allowMixedContent":          false,
+    "webContentsDebuggingEnabled": false,
+    "androidScheme":              "https"
+  }
+}
