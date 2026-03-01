@@ -488,4 +488,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (session) currentUser = session.user;
     });
   }
-});
+})();
+
+// Register service worker (enables offline use + PWA install on HTTPS)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {/* silently ignore on HTTP */});
+  });
+}
