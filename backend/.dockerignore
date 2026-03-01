@@ -1,0 +1,5 @@
+node_modules/
+squash.db
+squash.db-shm
+squash.db-wal
+.env
