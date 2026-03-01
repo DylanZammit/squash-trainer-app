@@ -121,22 +121,30 @@ if (window.speechSynthesis) {
   window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
 }
 
-// Android Chrome requires the first speak() to happen inside a user-gesture
-// handler. Call this on the "Start" button tap to unlock speech for the
-// entire session; a zero-volume utterance does the job silently.
+// Android Chrome requires the FIRST speak() call to happen synchronously
+// inside the user-gesture handler (i.e. before any await). Call this as
+// the very first line of startSession() — before loadSettings() or any
+// network call — to unlock speech for the whole session.
+// An empty string is ignored by some Android builds; use a zero-width
+// space so the engine treats it as a real (but silent) utterance.
 function unlockSpeech() {
   if (!window.speechSynthesis) return;
-  const utt  = new SpeechSynthesisUtterance('');
+  window.speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance('\u200B'); // zero-width space
   utt.volume = 0;
+  utt.rate   = 10; // play at max speed so it ends instantly
   window.speechSynthesis.speak(utt);
 }
 
-// Chrome silently pauses speechSynthesis after ~15 s of no speech.
-// A pause→resume heartbeat every 10 s prevents it.
+// Chrome/Android silently pauses speechSynthesis after ~15 s of no speech.
+// A pause→resume heartbeat prevents it. Only fire when no utterance is
+// currently playing to avoid cutting off a shot call mid-word.
 let _speechKeepAliveId = null;
 function startSpeechKeepAlive() {
   if (!window.speechSynthesis) return;
+  stopSpeechKeepAlive();
   _speechKeepAliveId = setInterval(() => {
+    if (window.speechSynthesis.speaking) return; // don't interrupt active speech
     window.speechSynthesis.pause();
     window.speechSynthesis.resume();
   }, 10000);
@@ -148,14 +156,16 @@ function stopSpeechKeepAlive() {
 
 function speak(text) {
   if (!window.speechSynthesis) return;
+  // cancel() then immediate speak() has a race on Android — give the engine
+  // one tick to finish cancelling before queuing the new utterance.
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
-  utt.rate  = 0.88;
+  utt.rate  = 0.9;
   utt.pitch = 1.0;
-  // Prefer an English voice if available (avoids wrong-language default on Android)
+  // Prefer an English voice; avoids wrong-language default on Android.
   const english = _voices.find(v => /en[-_]/i.test(v.lang));
   if (english) utt.voice = english;
-  window.speechSynthesis.speak(utt);
+  setTimeout(() => window.speechSynthesis.speak(utt), 50);
 }
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
@@ -369,6 +379,12 @@ async function handleSaveSettings(e) {
 // ── Session — start ───────────────────────────────────────────────────────
 async function startSession() {
   if (sessionActive) return;
+
+  // *** MUST be synchronous — before any await — so Android Chrome still
+  //     considers this call to be inside the user-gesture handler. ***
+  unlockSpeech();
+  startSpeechKeepAlive();
+
   await loadSettings();
 
   try {
@@ -389,10 +405,6 @@ async function startSession() {
     sessionActive  = true;
     sessionElapsed = 0;
 
-    // Unlock + keep-alive must be called while still in the user-gesture context
-    unlockSpeech();
-    startSpeechKeepAlive();
-
     $('start-btn').classList.add('hidden');
     $('stop-btn').classList.remove('hidden');
     $('session-display').classList.remove('hidden');
@@ -403,6 +415,7 @@ async function startSession() {
     sessionTickerId = setInterval(tickSession, 1000);
     scheduleNextShot();
   } catch (err) {
+    stopSpeechKeepAlive(); // clean up if session failed to start
     alert('Failed to start session: ' + err.message);
   }
 }
