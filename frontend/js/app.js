@@ -1,35 +1,59 @@
 'use strict';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Squash Trainer — Frontend Application (Supabase edition)
+   Squash Trainer — Frontend Application
    ──────────────────────────────────────────────────────────────────────────
-   All backend logic is replaced by the Supabase JS client.
-   Auth  → supabase.auth  (email/password, session stored in localStorage)
-   Data  → supabase.from('user_settings' | 'session_history')
-   Audio → Web Speech API  (speechSynthesis — no audio files needed)
-   Timer → Client-side setInterval / setTimeout
+   Supports two modes, selected automatically:
+
+   LOCAL_MODE  (Supabase URL is still a placeholder)
+     → Uses the Express REST API at /api/* with a JWT stored in localStorage.
+       Works with the Docker or bare-Node local dev setup — no Supabase needed.
+
+   SUPABASE_MODE  (real Supabase URL + anon key in supabase-config.js)
+     → Uses the Supabase JS SDK for auth and database access.
+       This is the production mode used by the Android app.
 ══════════════════════════════════════════════════════════════════════════ */
 
-// ── Supabase client ───────────────────────────────────────────────────────
+// ── Mode detection ────────────────────────────────────────────────────────
 // SUPABASE_URL and SUPABASE_ANON_KEY come from supabase-config.js
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const LOCAL_MODE = !SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT_ID');
+
+// Supabase client (created even in local mode, but never used)
+const sb = supabase.createClient(
+  LOCAL_MODE ? 'https://placeholder.supabase.co' : SUPABASE_URL,
+  LOCAL_MODE ? 'placeholder'                      : SUPABASE_ANON_KEY
+);
+
+// ── Local-API helpers (used only in LOCAL_MODE) ───────────────────────────
+function parseJwt(token) {
+  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(atob(base64));
+}
+
+async function localFetch(path, method = 'GET', body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token   = localStorage.getItem('local_token');
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res  = await fetch(path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Request failed');
+  return json;
+}
 
 // ── Shot list ─────────────────────────────────────────────────────────────
 const SHOTS = [
-  'Right Front Drop',
-  'Left Front Drop',
-  'Right Front Lob',
-  'Left Front Lob',
-  'Right Back Drive',
-  'Left Back Drive',
-  'Right Back Boast',
-  'Left Back Boast',
-  'Cross Court Drive',
-  'Straight Drive',
-  'Trickle Boast',
-  'Reverse Angle',
-  'Volley Drop',
-  'Volley Drive',
+  'Right Front Drop',  'Left Front Drop',
+  'Right Front Lob',   'Left Front Lob',
+  'Right Back Drive',  'Left Back Drive',
+  'Right Back Boast',  'Left Back Boast',
+  'Cross Court Drive', 'Straight Drive',
+  'Trickle Boast',     'Reverse Angle',
+  'Volley Drop',       'Volley Drive',
   'Nick Shot',
 ];
 
@@ -37,11 +61,10 @@ const SHOTS = [
 let currentUser = null;
 let settings    = { min_interval: 5, max_interval: 15, session_duration: 300 };
 
-// Active session state
 let sessionActive   = false;
-let sessionRowId    = null;   // UUID of the open session_history row
-let sessionElapsed  = 0;      // seconds elapsed in current session
-let nextShotIn      = 0;      // countdown seconds until next shot
+let sessionRowId    = null;
+let sessionElapsed  = 0;
+let nextShotIn      = 0;
 let sessionTickerId = null;
 let shotCountdownId = null;
 let shotTimeoutId   = null;
@@ -94,11 +117,20 @@ async function handleLogin(e) {
   const email    = $('login-email').value.trim();
   const password = $('login-password').value;
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { setAuthMessage(error.message, 'error'); return; }
-
-  currentUser = data.user;
-  showApp();
+  try {
+    if (LOCAL_MODE) {
+      const data = await localFetch('/api/login', 'POST', { email, password });
+      localStorage.setItem('local_token', data.token);
+      currentUser = { id: parseJwt(data.token).id, email: data.email };
+    } else {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw new Error(error.message);
+      currentUser = data.user;
+    }
+    showApp();
+  } catch (err) {
+    setAuthMessage(err.message, 'error');
+  }
 }
 
 async function handleSignup(e) {
@@ -106,27 +138,39 @@ async function handleSignup(e) {
   const email    = $('signup-email').value.trim();
   const password = $('signup-password').value;
 
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if (error) { setAuthMessage(error.message, 'error'); return; }
+  try {
+    if (LOCAL_MODE) {
+      const data = await localFetch('/api/signup', 'POST', { email, password });
+      localStorage.setItem('local_token', data.token);
+      currentUser = { id: parseJwt(data.token).id, email: data.email };
+      showApp();
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw new Error(error.message);
 
-  if (data.user) {
-    // Email confirmation is disabled — user is immediately active
-    currentUser = data.user;
-    // Provision default settings for this new account
-    await sb.from('user_settings').upsert(
-      { user_id: currentUser.id, min_interval: 5, max_interval: 15, session_duration: 300 },
-      { onConflict: 'user_id' }
-    );
-    showApp();
-  } else {
-    // Email confirmation is enabled — ask the user to check their inbox
-    setAuthMessage('Check your email to confirm your account, then log in.', 'success');
+      if (data.user) {
+        currentUser = data.user;
+        await sb.from('user_settings').upsert(
+          { user_id: currentUser.id, min_interval: 5, max_interval: 15, session_duration: 300 },
+          { onConflict: 'user_id' }
+        );
+        showApp();
+      } else {
+        setAuthMessage('Check your email to confirm your account, then log in.', 'success');
+      }
+    }
+  } catch (err) {
+    setAuthMessage(err.message, 'error');
   }
 }
 
 async function handleLogout() {
   stopSession(false);
-  await sb.auth.signOut();
+  if (LOCAL_MODE) {
+    localStorage.removeItem('local_token');
+  } else {
+    await sb.auth.signOut();
+  }
   currentUser = null;
   showAuth();
 }
@@ -162,17 +206,27 @@ function showView(name) {
 
 // ── Settings ──────────────────────────────────────────────────────────────
 async function loadSettings() {
-  const { data, error } = await sb
-    .from('user_settings')
-    .select('min_interval, max_interval, session_duration')
-    .eq('user_id', currentUser.id)
-    .single();
-
-  if (!error && data) {
-    settings = data;
-    $('setting-a').value = data.min_interval;
-    $('setting-b').value = data.max_interval;
-    $('setting-c').value = data.session_duration;
+  try {
+    let data;
+    if (LOCAL_MODE) {
+      data = await localFetch('/api/settings');
+    } else {
+      const res = await sb
+        .from('user_settings')
+        .select('min_interval, max_interval, session_duration')
+        .eq('user_id', currentUser.id)
+        .single();
+      if (res.error) throw new Error(res.error.message);
+      data = res.data;
+    }
+    if (data) {
+      settings = data;
+      $('setting-a').value = data.min_interval;
+      $('setting-b').value = data.max_interval;
+      $('setting-c').value = data.session_duration;
+    }
+  } catch (err) {
+    console.error('Failed to load settings:', err);
   }
 }
 
@@ -189,52 +243,61 @@ async function handleSaveSettings(e) {
     return;
   }
 
-  const { error } = await sb.from('user_settings').upsert(
-    { user_id: currentUser.id, min_interval: a, max_interval: b, session_duration: c },
-    { onConflict: 'user_id' }
-  );
-
-  if (error) {
-    msg.textContent = error.message;
+  try {
+    if (LOCAL_MODE) {
+      await localFetch('/api/settings', 'POST', { min_interval: a, max_interval: b, session_duration: c });
+    } else {
+      const { error } = await sb.from('user_settings').upsert(
+        { user_id: currentUser.id, min_interval: a, max_interval: b, session_duration: c },
+        { onConflict: 'user_id' }
+      );
+      if (error) throw new Error(error.message);
+    }
+    settings = { min_interval: a, max_interval: b, session_duration: c };
+    msg.textContent = 'Settings saved!';
+    msg.className   = 'message success';
+    setTimeout(() => { msg.textContent = ''; msg.className = 'message'; }, 2500);
+  } catch (err) {
+    msg.textContent = err.message;
     msg.className   = 'message error';
-    return;
   }
-
-  settings = { min_interval: a, max_interval: b, session_duration: c };
-  msg.textContent = 'Settings saved!';
-  msg.className   = 'message success';
-  setTimeout(() => { msg.textContent = ''; msg.className = 'message'; }, 2500);
 }
 
 // ── Session — start ───────────────────────────────────────────────────────
 async function startSession() {
   if (sessionActive) return;
-
-  // Pull the latest saved settings before starting
   await loadSettings();
 
-  const now = new Date().toISOString();
-  const { data, error } = await sb
-    .from('session_history')
-    .insert({ user_id: currentUser.id, session_start: now })
-    .select('id')
-    .single();
+  try {
+    if (LOCAL_MODE) {
+      const data   = await localFetch('/api/session/start', 'POST');
+      sessionRowId = data.session_id;
+    } else {
+      const now = new Date().toISOString();
+      const { data, error } = await sb
+        .from('session_history')
+        .insert({ user_id: currentUser.id, session_start: now })
+        .select('id')
+        .single();
+      if (error) throw new Error(error.message);
+      sessionRowId = data.id;
+    }
 
-  if (error) { alert('Failed to start session: ' + error.message); return; }
+    sessionActive  = true;
+    sessionElapsed = 0;
 
-  sessionRowId   = data.id;
-  sessionActive  = true;
-  sessionElapsed = 0;
+    $('start-btn').classList.add('hidden');
+    $('stop-btn').classList.remove('hidden');
+    $('session-display').classList.remove('hidden');
+    $('shot-display').classList.remove('hidden');
+    $('session-elapsed').textContent   = '00:00';
+    $('session-remaining').textContent = fmtTime(settings.session_duration);
 
-  $('start-btn').classList.add('hidden');
-  $('stop-btn').classList.remove('hidden');
-  $('session-display').classList.remove('hidden');
-  $('shot-display').classList.remove('hidden');
-  $('session-elapsed').textContent   = '00:00';
-  $('session-remaining').textContent = fmtTime(settings.session_duration);
-
-  sessionTickerId = setInterval(tickSession, 1000);
-  scheduleNextShot();
+    sessionTickerId = setInterval(tickSession, 1000);
+    scheduleNextShot();
+  } catch (err) {
+    alert('Failed to start session: ' + err.message);
+  }
 }
 
 // ── Session — per-second tick ─────────────────────────────────────────────
@@ -278,7 +341,7 @@ function displayShot(shot) {
   const el = $('current-shot');
   el.textContent = shot;
   el.classList.remove('flash');
-  void el.offsetWidth; // force reflow to restart animation
+  void el.offsetWidth;
   el.classList.add('flash');
 }
 
@@ -300,11 +363,19 @@ async function stopSession(save = true) {
   $('next-shot-countdown').textContent = '-';
 
   if (save && sessionRowId) {
-    const now = new Date().toISOString();
-    await sb.from('session_history').update({
-      session_end:      now,
-      duration_seconds: sessionElapsed,
-    }).eq('id', sessionRowId);
+    try {
+      if (LOCAL_MODE) {
+        await localFetch('/api/session/end', 'POST', { session_id: sessionRowId });
+      } else {
+        const now = new Date().toISOString();
+        await sb.from('session_history').update({
+          session_end:      now,
+          duration_seconds: sessionElapsed,
+        }).eq('id', sessionRowId);
+      }
+    } catch (err) {
+      console.error('Failed to save session:', err);
+    }
   }
 
   sessionRowId = null;
@@ -315,33 +386,39 @@ async function loadHistory() {
   const list = $('history-list');
   list.innerHTML = '<p class="loading-msg">Loading&hellip;</p>';
 
-  const { data, error } = await sb
-    .from('session_history')
-    .select('id, session_start, session_end, duration_seconds')
-    .eq('user_id', currentUser.id)
-    .order('session_start', { ascending: false })
-    .limit(50);
+  try {
+    let sessions;
+    if (LOCAL_MODE) {
+      sessions = await localFetch('/api/session/history');
+    } else {
+      const { data, error } = await sb
+        .from('session_history')
+        .select('id, session_start, session_end, duration_seconds')
+        .eq('user_id', currentUser.id)
+        .order('session_start', { ascending: false })
+        .limit(50);
+      if (error) throw new Error(error.message);
+      sessions = data;
+    }
 
-  if (error) {
-    list.innerHTML = `<p class="empty" style="color:var(--danger)">${error.message}</p>`;
-    return;
+    if (!sessions || sessions.length === 0) {
+      list.innerHTML = '<p class="empty">No sessions yet — start training!</p>';
+      return;
+    }
+
+    list.innerHTML = sessions.map(s => {
+      const durEl = s.duration_seconds != null
+        ? `<div class="history-duration">${fmtTime(s.duration_seconds)}</div>`
+        : `<div class="history-duration incomplete">Incomplete</div>`;
+      return `
+        <div class="history-item">
+          <div class="history-date">${fmtDate(s.session_start)}</div>
+          ${durEl}
+        </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = `<p class="empty" style="color:var(--danger)">${err.message}</p>`;
   }
-
-  if (!data || data.length === 0) {
-    list.innerHTML = '<p class="empty">No sessions yet — start training!</p>';
-    return;
-  }
-
-  list.innerHTML = data.map(s => {
-    const durEl = s.duration_seconds != null
-      ? `<div class="history-duration">${fmtTime(s.duration_seconds)}</div>`
-      : `<div class="history-duration incomplete">Incomplete</div>`;
-    return `
-      <div class="history-item">
-        <div class="history-date">${fmtDate(s.session_start)}</div>
-        ${durEl}
-      </div>`;
-  }).join('');
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
@@ -379,17 +456,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('start-btn').addEventListener('click', startSession);
   $('stop-btn').addEventListener('click',  () => stopSession(true));
 
-  // Restore existing Supabase session (persisted in localStorage by the SDK)
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    showApp();
+  // Restore existing session
+  if (LOCAL_MODE) {
+    const token = localStorage.getItem('local_token');
+    if (token) {
+      try {
+        const payload = parseJwt(token);
+        if (payload.exp * 1000 > Date.now()) {
+          currentUser = { id: payload.id, email: payload.email };
+          showApp();
+        } else {
+          localStorage.removeItem('local_token');
+          showAuth();
+        }
+      } catch {
+        localStorage.removeItem('local_token');
+        showAuth();
+      }
+    } else {
+      showAuth();
+    }
   } else {
-    showAuth();
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      showApp();
+    } else {
+      showAuth();
+    }
+    sb.auth.onAuthStateChange((_event, session) => {
+      if (session) currentUser = session.user;
+    });
   }
-
-  // Keep currentUser in sync if token refreshes in the background
-  sb.auth.onAuthStateChange((_event, session) => {
-    if (session) currentUser = session.user;
-  });
 });
