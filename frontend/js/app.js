@@ -96,12 +96,51 @@ function randomShot() {
 }
 
 // ── Speech ────────────────────────────────────────────────────────────────
+
+// Android Chrome loads voices asynchronously — pre-fetch them.
+let _voices = [];
+function loadVoices() {
+  _voices = window.speechSynthesis?.getVoices() ?? [];
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+}
+
+// Android Chrome requires the first speak() to happen inside a user-gesture
+// handler. Call this on the "Start" button tap to unlock speech for the
+// entire session; a zero-volume utterance does the job silently.
+function unlockSpeech() {
+  if (!window.speechSynthesis) return;
+  const utt  = new SpeechSynthesisUtterance('');
+  utt.volume = 0;
+  window.speechSynthesis.speak(utt);
+}
+
+// Chrome silently pauses speechSynthesis after ~15 s of no speech.
+// A pause→resume heartbeat every 10 s prevents it.
+let _speechKeepAliveId = null;
+function startSpeechKeepAlive() {
+  if (!window.speechSynthesis) return;
+  _speechKeepAliveId = setInterval(() => {
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 10000);
+}
+function stopSpeechKeepAlive() {
+  clearInterval(_speechKeepAliveId);
+  _speechKeepAliveId = null;
+}
+
 function speak(text) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   utt.rate  = 0.88;
   utt.pitch = 1.0;
+  // Prefer an English voice if available (avoids wrong-language default on Android)
+  const english = _voices.find(v => /en[-_]/i.test(v.lang));
+  if (english) utt.voice = english;
   window.speechSynthesis.speak(utt);
 }
 
@@ -286,6 +325,10 @@ async function startSession() {
     sessionActive  = true;
     sessionElapsed = 0;
 
+    // Unlock + keep-alive must be called while still in the user-gesture context
+    unlockSpeech();
+    startSpeechKeepAlive();
+
     $('start-btn').classList.add('hidden');
     $('stop-btn').classList.remove('hidden');
     $('session-display').classList.remove('hidden');
@@ -354,6 +397,7 @@ async function stopSession(save = true) {
   clearInterval(shotCountdownId);
   clearTimeout(shotTimeoutId);
   if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopSpeechKeepAlive();
 
   $('start-btn').classList.remove('hidden');
   $('stop-btn').classList.add('hidden');
