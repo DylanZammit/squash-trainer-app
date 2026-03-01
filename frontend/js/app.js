@@ -111,40 +111,42 @@ function randomShot() {
 
 // ── Speech ────────────────────────────────────────────────────────────────
 
-// Android Chrome loads voices asynchronously — pre-fetch them.
+// Native TTS via Capacitor plugin — used when running as an Android APK.
+// window.speechSynthesis does NOT work in Android WebView; the Capacitor
+// plugin bridges to the native Android TextToSpeech engine instead.
+const _capTTS = () => window.Capacitor?.Plugins?.TextToSpeech ?? null;
+
+// Web Speech API voices — loaded async on Android Chrome; pre-fetched here.
 let _voices = [];
-function loadVoices() {
+function _loadVoices() {
   _voices = window.speechSynthesis?.getVoices() ?? [];
 }
 if (window.speechSynthesis) {
-  loadVoices();
-  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+  _loadVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', _loadVoices);
 }
 
-// Android Chrome requires the FIRST speak() call to happen synchronously
-// inside the user-gesture handler (i.e. before any await). Call this as
-// the very first line of startSession() — before loadSettings() or any
-// network call — to unlock speech for the whole session.
-// An empty string is ignored by some Android builds; use a zero-width
-// space so the engine treats it as a real (but silent) utterance.
+// Unlock Web Speech for Android Chrome. Must be called synchronously inside
+// a user-gesture handler (before any await). Not needed for native TTS.
 function unlockSpeech() {
+  if (_capTTS()) return; // native TTS has no gesture restriction
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const utt  = new SpeechSynthesisUtterance('\u200B'); // zero-width space
+  const utt  = new SpeechSynthesisUtterance('\u200B');
   utt.volume = 0;
-  utt.rate   = 10; // play at max speed so it ends instantly
+  utt.rate   = 10;
   window.speechSynthesis.speak(utt);
 }
 
-// Chrome/Android silently pauses speechSynthesis after ~15 s of no speech.
-// A pause→resume heartbeat prevents it. Only fire when no utterance is
-// currently playing to avoid cutting off a shot call mid-word.
+// Keep-alive heartbeat for Chrome's 15 s auto-pause bug. Not needed for
+// native TTS which manages its own lifecycle.
 let _speechKeepAliveId = null;
 function startSpeechKeepAlive() {
+  if (_capTTS()) return;
   if (!window.speechSynthesis) return;
   stopSpeechKeepAlive();
   _speechKeepAliveId = setInterval(() => {
-    if (window.speechSynthesis.speaking) return; // don't interrupt active speech
+    if (window.speechSynthesis.speaking) return;
     window.speechSynthesis.pause();
     window.speechSynthesis.resume();
   }, 10000);
@@ -154,18 +156,30 @@ function stopSpeechKeepAlive() {
   _speechKeepAliveId = null;
 }
 
-function speak(text) {
+async function speak(text) {
+  // ── Native path: Capacitor APK (Android WebView) ─────────────────────
+  const tts = _capTTS();
+  if (tts) {
+    try {
+      await tts.speak({ text, lang: 'en-US', rate: 0.9, pitch: 1.0, volume: 1.0, category: 'ambient' });
+    } catch (e) {
+      console.warn('Capacitor TTS error:', e);
+    }
+    return;
+  }
+  // ── Fallback: Web Speech API (browser / PWA) ──────────────────────────
   if (!window.speechSynthesis) return;
-  // cancel() then immediate speak() has a race on Android — give the engine
-  // one tick to finish cancelling before queuing the new utterance.
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   utt.rate  = 0.9;
   utt.pitch = 1.0;
-  // Prefer an English voice; avoids wrong-language default on Android.
   const english = _voices.find(v => /en[-_]/i.test(v.lang));
   if (english) utt.voice = english;
   setTimeout(() => window.speechSynthesis.speak(utt), 50);
+}
+
+function stopNativeTTS() {
+  _capTTS()?.stop().catch(() => {});
 }
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
@@ -475,6 +489,7 @@ async function stopSession(save = true) {
   clearTimeout(shotTimeoutId);
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   stopSpeechKeepAlive();
+  stopNativeTTS();
 
   $('start-btn').classList.remove('hidden');
   $('stop-btn').classList.add('hidden');

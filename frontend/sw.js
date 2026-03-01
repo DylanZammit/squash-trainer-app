@@ -1,7 +1,7 @@
 // Squash Trainer — Service Worker
 // Caches static assets for offline use.
 
-const CACHE  = 'squash-v2';
+const CACHE  = 'squash-v3';
 const STATIC = [
   '/',
   '/index.html',
