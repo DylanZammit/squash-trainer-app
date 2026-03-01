@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies first (layer cache)
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Copy application code
+COPY . .
+
+EXPOSE 3001
+
+CMD ["node", "server.js"]

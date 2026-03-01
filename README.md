@@ -38,6 +38,8 @@ squash_timer_app/
 │
 ├── frontend/                      # Web UI — served statically, bundled into the APK
 │   ├── index.html                 # Single-page app shell (all views as hidden divs)
+│   ├── Dockerfile                 # nginx image: serves static files, proxies /api to backend
+│   ├── nginx.conf                 # nginx SPA config with /api reverse proxy
 │   ├── css/
 │   │   └── style.css              # Dark theme, mobile-first, CSS custom properties
 │   └── js/
@@ -52,6 +54,9 @@ squash_timer_app/
 ├── backend/                       # Optional — only needed for local browser development
 │   ├── server.js                  # Express entry point; serves frontend as static files
 │   ├── db.js                      # SQLite connection + schema bootstrap (async sqlite3)
+│   ├── Dockerfile                 # Node 18-alpine image; uses package-lock.json for reproducibility
+│   ├── package.json               # Direct dependencies
+│   ├── package-lock.json          # Locked dependency tree (used by Docker and npm ci)
 │   ├── .env.example               # Copy to .env and fill in JWT_SECRET
 │   ├── schema.sql                 # Reference SQLite schema (mirrors supabase/schema.sql)
 │   ├── middleware/
@@ -73,6 +78,8 @@ squash_timer_app/
 ├── docs/
 │   └── screenshots/               # SVG UI mockups used in this README
 │
+├── docker-compose.yml             # Runs frontend + backend as separate containers
+├── .env.example                   # Root env template for docker-compose (JWT_SECRET)
 ├── capacitor.config.json          # Capacitor: appId, appName, webDir = "frontend"
 └── package.json                   # Root: Capacitor CLI + Android adapter
 ```
@@ -83,14 +90,19 @@ squash_timer_app/
 |------|---------|
 | `frontend/js/app.js` | The entire client-side brain: Supabase auth, settings persistence, session timer loop, shot scheduler, Web Speech API calls |
 | `frontend/js/supabase-config.js` | **Fill this in** with your Supabase URL and anon key before building |
+| `frontend/nginx.conf` | nginx config: serves static files and reverse-proxies `/api/*` to the backend container |
 | `supabase/schema.sql` | Creates `user_settings` and `session_history` tables with RLS so users can only see their own rows |
 | `backend/server.js` | Express server for local browser testing; not needed for the Android app |
+| `backend/package-lock.json` | Locked dependency tree — ensures reproducible installs inside Docker (`npm ci`) |
+| `docker-compose.yml` | Orchestrates the `frontend` (nginx) and `backend` (Node.js) containers locally |
 | `android/app/build.gradle` | Contains the release signing config stub; uncomment and fill in keystore details before generating the signed AAB |
 | `capacitor.config.json` | Tells Capacitor the app ID (`com.squashtrainer.app`) and that `frontend/` is the web root |
 
 ---
 
 ## Architecture
+
+**Production (Android app):**
 
 ```
 Android App  (Capacitor WebView wrapping the frontend)
@@ -104,6 +116,21 @@ Supabase  (free tier)
 ```
 
 The backend Express server is **not deployed** in production. The frontend talks directly to Supabase using the public anon key; Row Level Security policies ensure each user can only access their own data.
+
+**Local Docker setup:**
+
+```
+Browser → localhost:3000
+               │
+               ▼
+    [frontend container — nginx]
+       /api/*  │  static files
+               ▼
+    [backend container — Node.js :3001]
+               │
+               ▼
+        SQLite (Docker volume)
+```
 
 ---
 
@@ -167,9 +194,77 @@ In Android Studio: **Build → Generate Signed Bundle / APK → Android App Bund
 
 ---
 
-### Option B — Local browser development
+### Option B — Docker (recommended for local development)
 
-The backend Express server runs locally with SQLite and serves the frontend. You do **not** need Supabase credentials for this mode.
+Two containers are started:
+
+| Container | Image | Role | Port |
+|-----------|-------|------|------|
+| `frontend` | nginx:alpine | Serves static HTML/CSS/JS; reverse-proxies `/api/*` to the backend | `3000` → `80` |
+| `backend` | node:18-alpine | Express REST API + SQLite | internal `3001` |
+
+SQLite data is stored in a named Docker volume (`db_data`) so it survives container restarts.
+
+#### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose plugin)
+
+#### Steps
+
+```bash
+cd ~/Desktop/squash_timer_app
+
+# 1. Create your environment file
+cp .env.example .env          # edit JWT_SECRET if desired
+
+# 2. Build images and start both containers
+docker compose up --build
+
+# 3. Open the app
+# http://localhost:3000
+```
+
+To stop:
+
+```bash
+docker compose down
+```
+
+To stop **and delete** the SQLite data volume:
+
+```bash
+docker compose down -v
+```
+
+To rebuild after code changes:
+
+```bash
+docker compose up --build
+```
+
+#### How the containers communicate
+
+```
+Browser → http://localhost:3000
+              │
+              ▼
+       [frontend — nginx]
+          │          │
+          │ /api/*   │ everything else
+          ▼          ▼
+   [backend:3001]  static files
+    Express API     (HTML/CSS/JS)
+          │
+          ▼
+    SQLite (db_data volume)
+```
+
+> **Note:** the Docker / local backend uses a separate authentication system (JWT + SQLite) from the Android app (Supabase). Accounts are not shared between the two modes.
+
+---
+
+### Option C — Local browser development (without Docker)
+
+The backend Express server runs directly on your machine. You do **not** need Supabase credentials for this mode.
 
 #### Prerequisites
 - Node.js 18+
@@ -185,8 +280,6 @@ npm start
 ```
 
 Open **http://localhost:3000** in your browser.
-
-> **Note:** the local backend uses a separate authentication system (JWT + SQLite) from the Android app (Supabase). Accounts are not shared between the two modes.
 
 ---
 

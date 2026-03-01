@@ -11,7 +11,7 @@ async function getDb() {
   if (_db) return _db;
 
   _db = await open({
-    filename: path.join(__dirname, 'squash.db'),
+    filename: process.env.DB_PATH || path.join(__dirname, 'squash.db'),
     driver: sqlite3.Database,
   });
 
